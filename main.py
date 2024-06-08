@@ -1,6 +1,11 @@
 import customtkinter as ctk
 import sqlite3
-from contexto import create_table_sql
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+current_page = 0
+items_per_page = 10
 
 def salvar_contato():
     nome = entry_nome.get()
@@ -25,9 +30,9 @@ def salvar_contato():
 
         update_table()
         
-        ctk.messagebox.showinfo("Sucesso", "Contato salvo com sucesso!")
+        ctk.messagebox.showinfo("Sucesso", "Contato salvo")
     else:
-        ctk.messagebox.showerror("Erro", "Por favor, preencha o nome e o contato.")
+        ctk.messagebox.showerror("Erro", "Falta nome ou contato")
 
 def update_table():
     for widget in tabela.winfo_children():
@@ -39,10 +44,81 @@ def update_table():
     dados_contatos = cursor.fetchall()
     conn.close()
 
-    for i, dados in enumerate(dados_contatos):
+    global current_page, items_per_page
+    start_index = current_page * items_per_page
+    end_index = start_index + items_per_page
+    page_data = dados_contatos[start_index:end_index]
+
+    for i, dados in enumerate(page_data):
         for j, dado in enumerate(dados):
             ctk_label = ctk.CTkLabel(tabela, text=dado)
             ctk_label.grid(row=i, column=j, padx=5, pady=5)
+
+    button_previous_page.configure(state=ctk.NORMAL if current_page > 0 else ctk.DISABLED)
+    button_next_page.configure(state=ctk.NORMAL if end_index < len(dados_contatos) else ctk.DISABLED)
+
+def previous_page():
+    global current_page
+    if current_page > 0:
+        current_page -= 1
+        update_table()
+
+def next_page():
+    global current_page
+    current_page += 1
+    update_table()
+
+def abrir_janela_email():
+    janela_email = ctk.CTkToplevel()
+    janela_email.title("Envio de Emails em Massa")
+
+    label_assunto = ctk.CTkLabel(janela_email, text="Assunto:")
+    label_assunto.grid(row=0, column=0, padx=10, pady=(20, 5), sticky="w")
+    entry_assunto = ctk.CTkEntry(janela_email)
+    entry_assunto.grid(row=0, column=1, padx=10, pady=(20, 5))
+
+    label_mensagem = ctk.CTkLabel(janela_email, text="Mensagem:")
+    label_mensagem.grid(row=1, column=0, padx=10, pady=5, sticky="nw")
+    text_mensagem = ctk.CTkText(janela_email, height=10, width=50)
+    text_mensagem.grid(row=1, column=1, padx=10, pady=5)
+
+    button_enviar = ctk.CTkButton(janela_email, text="Enviar", command=lambda: enviar_emails(entry_assunto.get(), text_mensagem.get("1.0", ctk.END)))
+    button_enviar.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+
+def enviar_emails(assunto, mensagem):
+    conn = sqlite3.connect('contatos.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT email FROM Contato")
+    emails = cursor.fetchall()
+    conn.close()
+
+    emails = [email[0] for email in emails]
+
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+    sender_email = "seuemail@gmail.com"
+    sender_password = "suasenha"
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+
+        for email in emails:
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = email
+            msg['Subject'] = assunto
+
+            msg.attach(MIMEText(mensagem, 'plain'))
+
+            server.sendmail(sender_email, email, msg.as_string())
+
+        server.quit()
+
+        ctk.messagebox.showinfo("Sucesso", "Emails enviados com sucesso")
+    except Exception as e:
+        ctk.messagebox.showerror("Erro", f"Erro ao enviar emails: {e}")
 
 app = ctk.CTk()
 app.title("Aplicativo de Contatos")
@@ -70,13 +146,25 @@ entry_email.grid(row=3, column=1, padx=10, pady=5)
 button_salvar = ctk.CTkButton(app, text="Salvar", command=salvar_contato)
 button_salvar.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
 
-tabela = ctk.CTkFrame(app)
-tabela.grid(row=5, column=0, columnspan=2, padx=20, pady=20, sticky="nsew")
+button_enviar_email = ctk.CTkButton(app, text="Enviar Emails em Massa", command=abrir_janela_email)
+button_enviar_email.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
 
-for i in range(5):
+tabela = ctk.CTkFrame(app)
+tabela.grid(row=6, column=0, columnspan=2, padx=20, pady=20, sticky="nsew")
+
+button_previous_page = ctk.CTkButton(app, text="Página Anterior", command=previous_page)
+button_previous_page.grid(row=7, column=0, padx=10, pady=10, sticky="w")
+
+button_next_page = ctk.CTkButton(app, text="Próxima Página", command=next_page)
+button_next_page.grid(row=7, column=1, padx=10, pady=10, sticky="e")
+
+for i in range(6):
     app.grid_rowconfigure(i, weight=1)
-app.grid_rowconfigure(5, weight=10)
+app.grid_rowconfigure(6, weight=10)
+app.grid_rowconfigure(7, weight=1)
 for i in range(2):
     app.grid_columnconfigure(i, weight=1)
+
+update_table()
 
 app.mainloop()
