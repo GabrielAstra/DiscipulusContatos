@@ -94,11 +94,11 @@ def enviar_emails(assunto, mensagem):
 
     emails = [email[0] for email in emails]
 
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = "seuemail@gmail.com"
-    sender_password = "suasenha"
-
+    smtp_server = ""
+    smtp_port = 587 
+    sender_email = ""
+    sender_password = ""
+ ## lembrar de preencher e terminar configuração para envio de emails em massa
     try:
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
