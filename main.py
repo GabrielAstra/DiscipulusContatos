@@ -4,8 +4,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-current_page = 0
-items_per_page = 10
+pagina = 0
+itens_por_pagina = 10
 
 def salvar_contato():
     nome = entry_nome.get()
@@ -44,9 +44,9 @@ def update_table():
     dados_contatos = cursor.fetchall()
     conn.close()
 
-    global current_page, items_per_page
-    start_index = current_page * items_per_page
-    end_index = start_index + items_per_page
+    global pagina, itens_por_pagina
+    start_index = pagina * itens_por_pagina
+    end_index = start_index + itens_por_pagina
     page_data = dados_contatos[start_index:end_index]
 
     for i, dados in enumerate(page_data):
@@ -54,18 +54,18 @@ def update_table():
             ctk_label = ctk.CTkLabel(tabela, text=dado)
             ctk_label.grid(row=i, column=j, padx=5, pady=5)
 
-    button_previous_page.configure(state=ctk.NORMAL if current_page > 0 else ctk.DISABLED)
+    button_previous_page.configure(state=ctk.NORMAL if pagina > 0 else ctk.DISABLED)
     button_next_page.configure(state=ctk.NORMAL if end_index < len(dados_contatos) else ctk.DISABLED)
 
 def previous_page():
-    global current_page
-    if current_page > 0:
-        current_page -= 1
+    global pagina
+    if pagina > 0:
+        pagina -= 1
         update_table()
 
 def next_page():
-    global current_page
-    current_page += 1
+    global pagina
+    pagina += 1
     update_table()
 
 def abrir_janela_email():
